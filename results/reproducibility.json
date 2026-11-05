@@ -1,0 +1,8 @@
+{
+  "rows_compared": 400,
+  "ignored_column": "time_ms",
+  "all_other_columns_identical": true,
+  "first_run_sha256": "0819f13f0e85addff2f2cc3d1a9330835e3e8f8d00c366847b7195a6f84751da",
+  "results_csv_sha256": "51149eeda2b23cbca95b12391fadd8ed06a96b3f8f61662d4c1f26964729b3b7",
+  "storage": "The first run was kept in memory; results/results.csv contains the second run."
+}

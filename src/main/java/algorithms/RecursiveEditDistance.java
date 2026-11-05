@@ -5,6 +5,9 @@ import java.util.Objects;
 public final class RecursiveEditDistance implements EditDistance {
     private final Counters counters = new Counters();
 
+    // State: d(n,m) is the distance between the first n and m characters.
+    // Transition: equal last characters use d(n-1,m-1); otherwise 1 + min(delete, insert, replace).
+    // Base case: d(0,m) = m and d(n,0) = n.
     @Override
     public int distance(String a, String b) {
         Objects.requireNonNull(a, "a");

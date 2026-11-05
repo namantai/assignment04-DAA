@@ -5,6 +5,9 @@ import java.util.Objects;
 public final class TwoRowsEditDistance implements EditDistance {
     private final Counters counters = new Counters();
 
+    // State: previous[j] = d(i-1,j), current[j] = d(i,j) for the current row i.
+    // Transition: min(previous[j]+1, current[j-1]+1, previous[j-1]+substitution cost); swap rows.
+    // Base case: previous[j] = j for i = 0; current[0] = i on each new row.
     @Override
     public int distance(String a, String b) {
         Objects.requireNonNull(a, "a");

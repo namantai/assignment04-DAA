@@ -1,6 +1,6 @@
 # Assignment 4: Dynamic Programming and String Algorithms
 
-Nurtas Amantay, SE-2506
+Nurtas Amantay, SE-2525
 
 ## 1. Experiment Design Card
 
@@ -15,7 +15,7 @@ This card was written before the first benchmark run. The sizes below replace th
 | Prediction | Mismatch recursion grows exponentially; DP updates grow quadratically. Identical recursion takes n+1 calls. Two rows need linear storage, while the table needs quadratic storage. | Random Naive may do fewer comparisons because most starts fail early. KMP should save many comparisons on adversarial input. With fixed m, both search curves are linear in n, with different constants. |
 | Plots | Shared-size operation growth on a log axis; allocated DP integer cells at large sizes. | Total comparisons for random and adversarial inputs, including LPS. |
 
-The recursion range is 3 to 12 (4x), instead of the suggested 4 to 16. On full mismatch, every non-base call has three children, so 16 is too expensive for repeated trials. The chosen limit keeps the experiment bounded; it is not a claim about the largest possible input. The adversarial search input attains the maximum m comparisons per valid Naive start. No larger recursive size will be timed in this experiment.
+The recursive range is 3 to 12 (4x), replacing the suggested 4 to 16. Full mismatch forces three branches at each non-base call, so the larger size would be too expensive for repeated trials. This is a planned limit, not the largest possible input. The search adversary forces the maximum m comparisons at every valid Naive start.
 
 Seed: 20261105. Each input has a derived seed based on family, type and size. Inputs are generated once and shared by the algorithms. Timing uses System.nanoTime(), 5 measured batches after global and case-specific warm-up, with time divided by the batch size. Generation, validation and CSV writing stay outside timing. Every measured answer is checked. Counter values are per call, not per batch; time may vary between runs.
 
@@ -25,13 +25,13 @@ Recursion compares the last characters without caching. The table stores prefix 
 
 Counters reset on each call. Recursive calls include base cases; DP updates count interior cells only. Search comparisons count each character equality test, including failures; LPS comparisons are separate. Allocated cells are counted when integer arrays are created, excluding headers, references, output lists and the recursion stack. This is storage in integer cells, not physical heap usage. Zero means no counted operation or a metric that does not apply.
 
-The benchmark makes 500 global warm-up rounds, then two warm-up batches per case. It records five batches: short calls repeat 20-1000 times, search repeats 100 times, and expensive recursive calls run once. Exact repetitions are in CSV. Timing includes counters, allocation, method dispatch and answer storage; correctness checks happen afterwards. This classroom benchmark ran on OpenJDK 21.0.12.1, Maven 3.10.0, Linux x86_64 and Intel i5-12450H. All 295 tests passed, including 100 random cases per family. Both complete JVM runs matched in all non-timing columns across 400 rows.
+The benchmark uses 500 global warm-up rounds and two warm-up batches per case. Five measured batches follow. Search calls repeat 100 times; distance calls repeat 1-1000 times, as recorded in CSV. Timing includes counters, allocation, method dispatch and answer storage. Measurements use Java 21 on an Intel i5-12450H. All 295 tests passed, including 100 random cases per family.
 
 <!-- pagebreak -->
 
 ## 3. Results and Plots
 
-There are 80 combinations and five trials each in results/results.csv. All plots use this file; medians, minimums and maximums are calculated in memory. Only one seeded input per size/type is sampled, so the results do not estimate an average over all possible strings.
+The single results/results.csv contains 80 combinations with five trials each. Plots show per-call counters, which are identical across trials. Reported times are medians of the five measurements. Each type and size uses one seeded input, so the results are not averages over all possible strings.
 
 ![Edit Distance operations](results/plots/edit_distance.png)
 
@@ -53,13 +53,13 @@ Figure 3: At n=16,000, adversarial Naive uses 511,008 comparisons against KMP's 
 
 KMP's adversarial total contains 31,969 search comparisons and 61 LPS comparisons. Naive repeats 32 comparisons at each valid start. Since m stays at 32, both curves grow linearly with n in this experiment; the plot does not claim quadratic growth in n. The generated search cases have no matches; overlap correctness is covered by the unit tests.
 
-Measured time: Mismatch recursion reaches a median of 598.352 ms at n=12, while random n=800 takes 2.517 ms with Table and 0.955 ms with Two Rows.
+Measured time: Mismatch recursion reaches a median of 581.860 ms at n=12, while random n=800 takes 1.943 ms with Table and 0.955 ms with Two Rows.
 
 ## 4. Prediction vs Result
 
 Edit Distance: I expected exponential mismatch recursion, quadratic DP work and linear Two Rows storage. These predictions agree with the counters: mismatch recursive calls increase about 172 times from n=9 to 12, whereas DP updates increase from 81 to 144. Identical input confirms that plain recursion is not always slow: it follows one diagonal path. The table and two-row times differ even when their update counts are equal because memory access, allocation and generated machine code also matter.
 
-String search: I expected a large KMP benefit on adversarial input and possible Naive wins on random input. KMP used fewer total comparisons on every sampled random size, so that possible Naive advantage did not appear in the counts. The four-letter alphabet allows partial matches that KMP can reuse, and the fixed LPS cost is small compared with these text lengths. KMP also had lower median times on these random inputs, but at n=16,000 the difference was small: 0.04304 ms against 0.04382 ms for Naive.
+String search: I expected a large KMP benefit on adversarial input and possible Naive wins on random input. KMP used fewer total comparisons on every sampled random size, so that possible Naive advantage did not appear in the counts. The four-letter alphabet allows partial matches that KMP can reuse, and the fixed LPS cost is small compared with these text lengths. Comparison counts did not always predict time: at random n=16,000, KMP took 0.07661 ms and Naive took 0.05126 ms.
 
 <!-- pagebreak -->
 
@@ -67,11 +67,11 @@ String search: I expected a large KMP benefit on adversarial input and possible 
 
 ### Which input made your string search slowest, and why?
 
-The slowest measured search was Naive on adversarial input at n=16,000, with a median of 1.065 ms. The pattern matches 31 A characters and fails on the final B at every valid position. This causes 511,008 repeated comparisons. KMP reuses the matched prefix and takes 0.102 ms including LPS on the same input.
+The slowest measured search was Naive on adversarial input at n=16,000, with a median of 1.126 ms. The pattern matches 31 A characters and fails on the final B at every valid position. This causes 511,008 repeated comparisons. KMP reuses the matched prefix and takes 0.099 ms including LPS on the same input.
 
 ### How large an n could recursive Edit Distance handle, and what stopped it?
 
-The largest tested size was n=m=12, and it completed for all three input types. Full mismatch needed 377,393,953 calls and a median of 0.598 seconds per call to distance. The planned experiment stopped at 12 to keep repeated measurements practical, rather than after a crash or timeout. Larger sizes were not tested, and the limiting concern is repeated branching, not stack depth at these small sizes.
+The largest tested size was n=m=12, and it completed for all three input types. Full mismatch needed 377,393,953 calls and a median of 0.582 seconds per call to distance. The planned experiment stopped at 12 to keep repeated measurements practical, rather than after a crash or timeout. Larger sizes were not tested, and the limiting concern is repeated branching, not stack depth at these small sizes.
 
 ### What do you gain and lose with two rows instead of the full table?
 
@@ -79,11 +79,11 @@ Two Rows reduces additional storage from O(n*m) to O(m) while returning the same
 
 ### Which string search would you choose for the city platform, and why?
 
-I would choose KMP for searching long city logs. It handles repeated prefixes without restarting the pattern at every text position, and its O(n+m) bound gives predictable growth. Our adversarial case supports this choice, although the small timing difference on random n=16,000 shows that the benefit depends on the input. For typo correction in street names, I would use two-row Edit Distance because exact string search does not measure spelling differences.
+I would choose KMP for searching long city logs. It handles repeated prefixes without restarting the pattern at every text position, and its O(n+m) bound gives predictable growth. Our adversarial case supports this choice, although KMP had a slower median on random n=16,000. For typo correction in street names, I would use two-row Edit Distance because exact string search does not measure spelling differences.
 
 ## 6. Time Analysis
 
-Mismatch recursion ranged from 596.275 to 604.619 ms at n=12; random Table at n=800 ranged from 2.048 to 2.682 ms. The JVM and JIT can change compiled code during execution, while garbage collection, CPU scheduling and other system load affect the clock. Warm-up helps but does not remove these effects: random search time rose sharply between n=8,000 and 16,000. Five trials and their median reduce the effect of one unusual run, but do not prove a general speed ranking. Batching makes short calls measurable; dispatch and answer-storage overhead remain, so tiny differences should not be over-interpreted. Operation counters repeat exactly and explain growth more reliably, while timings show actual cost on this machine. The benchmark runs cases in a fixed order and does not isolate the CPU, which is another limit on timing comparisons.
+Mismatch recursion ranged from 578.760 to 617.011 ms at n=12; random Table at n=800 ranged from 1.917 to 2.650 ms. The JVM and JIT can change compiled code during execution, while garbage collection, CPU scheduling and other system load affect the clock. Warm-up helps but does not remove these effects: random search time rose sharply between n=8,000 and 16,000. Five trials and their median reduce the effect of one unusual run, but do not prove a general speed ranking. Batching makes short calls measurable; dispatch and answer-storage overhead remain, so tiny differences should not be over-interpreted. Operation counters repeat exactly and explain growth more reliably, while timings show actual cost on this machine. The benchmark runs cases in a fixed order and does not isolate the CPU, which is another limit on timing comparisons.
 
 ## 7. Conclusion
 

@@ -1,118 +1,71 @@
-#!/usr/bin/env python3
-"""Validate the Java CSV, summarize real trials and plot them. No algorithm simulation."""
 import csv
-import math
-import os
-from collections import defaultdict
 from pathlib import Path
-from statistics import median
-
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/daa-matplotlib")
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-ROOT = Path(__file__).resolve().parents[1]
-RESULTS = ROOT / "results"
-PLOTS = RESULTS / "plots"
-PLOTS.mkdir(parents=True, exist_ok=True)
+root = Path(__file__).resolve().parents[1]
+plots = root / 'results/plots'
+plots.mkdir(parents=True, exist_ok=True)
+with (root / 'results/results.csv').open(newline='') as file:
+    rows = list(csv.DictReader(file))
 
 
-def load_results():
-    with (RESULTS / "results.csv").open(newline="") as source:
-        rows = list(csv.DictReader(source))
-    groups = defaultdict(list)
+def draw(ax, algorithm, kind, metric, sizes, label):
+    points = []
     for row in rows:
-        for key in row:
-            if key not in ("algorithm", "input"):
-                row[key] = float(row[key]) if key == "time_ms" else int(row[key])
-        assert math.isfinite(row["time_ms"]) and row["time_ms"] > 0
-        groups[(row["algorithm"], row["input"], row["n"], row["m"])].append(row)
-    summary = []
-    for key, trials in groups.items():
-        assert sorted(r["trial"] for r in trials) == [1, 2, 3, 4, 5], key
-        for field in trials[0]:
-            if field not in ("time_ms", "trial"):
-                assert len({r[field] for r in trials}) == 1, (key, field)
-        point = trials[0].copy()
-        point.pop("trial")
-        times = [r["time_ms"] for r in trials]
-        point["time_ms"] = median(times)
-        point["min_time_ms"] = min(times)
-        point["max_time_ms"] = max(times)
-        point["total_comparisons"] = point["comparisons"] + point["lps_comparisons"]
-        summary.append(point)
-    expected_algorithms = {"RecursiveEditDistance", "TableEditDistance", "TwoRowsEditDistance", "NaiveSearch", "KMPSearch"}
-    assert {r["algorithm"] for r in summary} == expected_algorithms
-    for algorithm in expected_algorithms:
-        points = [r for r in summary if r["algorithm"] == algorithm]
-        assert len({r["input"] for r in points}) >= 2
-        for kind in {r["input"] for r in points}:
-            sizes = {r["n"] for r in points if r["input"] == kind}
-            assert len(sizes) >= 4 and max(sizes) >= 4 * min(sizes), (algorithm, kind)
-    answers = defaultdict(set)
-    for row in summary:
-        family = "edit" if "EditDistance" in row["algorithm"] else "search"
-        answers[(family, row["input"], row["n"], row["m"])].add((row["result"], row["result_hash"], row["case_seed"]))
-    assert all(len(values) == 1 for values in answers.values())
-    print(f"Validated {len(rows)} trials / {len(summary)} combinations")
-    return summary
-
-
-def series(data, algorithm, kind, field, small=None):
-    selected = [r for r in data if r["algorithm"] == algorithm and r["input"] == kind
-                and (small is None or (r["n"] <= 12) == small)]
-    selected.sort(key=lambda r: r["n"])
-    return [r["n"] for r in selected], [r[field] for r in selected]
-
-
-def line(ax, data, algorithm, kind, field, label, small=None, marker="o"):
-    x, y = series(data, algorithm, kind, field, small)
-    ax.plot(x, y, marker=marker, linewidth=1.8, markersize=4, label=label)
-    ax.grid(True, which="both", alpha=0.2)
+        n = int(row['n'])
+        if row['algorithm'] == algorithm and row['input'] == kind and row['trial'] == '1' and n in sizes:
+            value = int(row[metric])
+            if metric == 'comparisons':
+                value += int(row['lps_comparisons'])
+            points.append((n, value))
+    points.sort()
+    x = []
+    y = []
+    for n, value in points:
+        x.append(n)
+        y.append(value)
+    marker = 'x' if algorithm == 'TwoRowsEditDistance' else 'o'
+    ax.plot(x, y, marker=marker, label=label)
 
 
 def save(fig, name):
-    fig.savefig(PLOTS / name, dpi=180, bbox_inches="tight")
+    fig.tight_layout()
+    fig.savefig(plots / name, dpi=180)
     plt.close(fig)
-    print(PLOTS / name)
 
 
-def main():
-    data = load_results()
-    plt.rcParams.update({"font.size": 11, "axes.titlesize": 11, "axes.labelsize": 11,
-                         "legend.fontsize": 9, "figure.facecolor": "white"})
-    fig, ax = plt.subplots(figsize=(9, 3.3), constrained_layout=True)
-    for kind in ("random", "mismatch", "identical"):
-        line(ax, data, "RecursiveEditDistance", kind, "recursive_calls", "Recursive calls: " + kind, True)
-    line(ax, data, "TableEditDistance", "random", "cell_updates", "Table updates (all inputs)", True, "s")
-    line(ax, data, "TwoRowsEditDistance", "random", "cell_updates", "Two Rows updates (all inputs)", True, "x")
-    ax.set(title="Edit Distance: counted work on shared sizes",
-           xlabel="String length n = m (characters)", ylabel="Count per call (log scale)",
-           yscale="log", xticks=[3, 6, 9, 12])
-    ax.legend(loc="upper left")
-    save(fig, "edit_distance.png")
+small = [3, 6, 9, 12]
+large = [100, 200, 400, 800]
+search = [1000, 2000, 4000, 8000, 16000]
 
-    fig, ax = plt.subplots(figsize=(9, 2.9), constrained_layout=True)
-    line(ax, data, "TableEditDistance", "random", "allocated_cells", "Full Table", False)
-    line(ax, data, "TwoRowsEditDistance", "random", "allocated_cells", "Two Rows", False, "s")
-    ax.set(title="DP storage: allocated integer cells (not measured heap bytes)",
-           xlabel="String length n = m (characters)", ylabel="Integer cells per call (log scale)",
-           yscale="log", xticks=[100, 200, 400, 800])
+fig, ax = plt.subplots(figsize=(9, 3.3))
+for kind in ['random', 'mismatch', 'identical']:
+    draw(ax, 'RecursiveEditDistance', kind, 'recursive_calls', small, 'Recursive calls: ' + kind)
+draw(ax, 'TableEditDistance', 'random', 'cell_updates', small, 'Table updates (all inputs)')
+draw(ax, 'TwoRowsEditDistance', 'random', 'cell_updates', small, 'Two Rows updates (all inputs)')
+ax.set(title='Edit Distance: counted work', xlabel='String length n = m (characters)',
+       ylabel='Count per call (log scale)', yscale='log', xticks=small)
+ax.legend(fontsize=9)
+ax.grid(alpha=0.2)
+save(fig, 'edit_distance.png')
+
+fig, ax = plt.subplots(figsize=(9, 2.9))
+draw(ax, 'TableEditDistance', 'random', 'allocated_cells', large, 'Full Table')
+draw(ax, 'TwoRowsEditDistance', 'random', 'allocated_cells', large, 'Two Rows')
+ax.set(title='DP storage: allocated integer cells, not heap bytes',
+       xlabel='String length n = m (characters)', ylabel='Integer cells per call (log scale)',
+       yscale='log', xticks=large)
+ax.legend()
+ax.grid(alpha=0.2)
+save(fig, 'memory.png')
+
+fig, axes = plt.subplots(1, 2, figsize=(9, 3.1))
+fig.suptitle('String search: character comparisons, pattern length m = 32')
+for ax, kind in zip(axes, ['random', 'adversarial']):
+    draw(ax, 'NaiveSearch', kind, 'comparisons', search, 'Naive')
+    draw(ax, 'KMPSearch', kind, 'comparisons', search, 'KMP search + LPS')
+    ax.set(title=kind.capitalize(), xlabel='Text length n (characters)', ylabel='Comparisons per call (count)')
+    ax.ticklabel_format(axis='y', style='plain')
     ax.legend()
-    save(fig, "memory.png")
-
-    fig, axes = plt.subplots(1, 2, figsize=(9, 3.1), constrained_layout=True)
-    fig.suptitle("String search: total character comparisons, pattern length m = 32", fontsize=12)
-    for ax, kind in zip(axes, ("random", "adversarial")):
-        line(ax, data, "NaiveSearch", kind, "total_comparisons", "Naive")
-        line(ax, data, "KMPSearch", kind, "total_comparisons", "KMP search + LPS", marker="s")
-        ax.set(title=kind.capitalize(), xlabel="Text length n (characters)", ylabel="Comparisons per call (count)")
-        ax.ticklabel_format(axis="y", style="plain")
-        ax.legend()
-    save(fig, "string_search.png")
-
-
-
-if __name__ == "__main__":
-    main()
+    ax.grid(alpha=0.2)
+save(fig, 'string_search.png')

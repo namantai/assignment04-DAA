@@ -5,6 +5,9 @@ import java.util.Objects;
 public final class TableEditDistance implements EditDistance {
     private final Counters counters = new Counters();
 
+    // State: dp[i][j] is the distance between prefixes a[0..i) and b[0..j).
+    // Transition: min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+substitution cost).
+    // Base case: dp[i][0] = i and dp[0][j] = j.
     @Override
     public int distance(String a, String b) {
         Objects.requireNonNull(a, "a");

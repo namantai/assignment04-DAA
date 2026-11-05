@@ -3,6 +3,7 @@ package algorithms;
 import java.util.Objects;
 
 public final class TwoRowsEditDistance implements EditDistance {
+    private final Counters counters = new Counters();
 
     // State: previous[j] = d(i-1,j), current[j] = d(i,j) for the current row i.
     // Transition: min(previous[j]+1, current[j-1]+1, previous[j-1]+substitution cost); swap rows.
@@ -11,9 +12,12 @@ public final class TwoRowsEditDistance implements EditDistance {
     public int distance(String a, String b) {
         Objects.requireNonNull(a, "a");
         Objects.requireNonNull(b, "b");
+        counters.reset();
         int m = b.length();
         int[] previous = new int[m + 1];
+        counters.allocatedCells += previous.length;
         int[] current = new int[m + 1];
+        counters.allocatedCells += current.length;
         for (int j = 0; j <= m; j++) previous[j] = j;
         for (int i = 1; i <= a.length(); i++) {
             current[0] = i;
@@ -21,6 +25,7 @@ public final class TwoRowsEditDistance implements EditDistance {
                 int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
                 current[j] = Math.min(previous[j] + 1,
                         Math.min(current[j - 1] + 1, previous[j - 1] + cost));
+                counters.cellUpdates++;
             }
             int[] temporary = previous;
             previous = current;
@@ -29,4 +34,6 @@ public final class TwoRowsEditDistance implements EditDistance {
         return previous[m];
     }
 
+    @Override
+    public Counters counters() { return counters; }
 }

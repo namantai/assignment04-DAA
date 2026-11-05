@@ -97,6 +97,25 @@ class StringSearchTest {
         return result.toString();
     }
 
+    @Test
+    void handCountedSearchAndLpsComparisons() {
+        NaiveSearch naive = new NaiveSearch();
+        KMPSearch kmp = new KMPSearch();
+        assertEquals(List.of(), naive.search("AAAAA", "AAB"));
+        assertEquals(9, naive.counters().comparisons());
+        assertEquals(List.of(), kmp.search("AAAAA", "AAB"));
+        assertEquals(8, kmp.counters().comparisons());
+        assertEquals(3, kmp.counters().lpsComparisons());
+        assertEquals(3, kmp.counters().allocatedCells());
+        assertArrayEquals(new int[]{0}, kmp.lps("X"));
+        assertEquals(0, kmp.counters().comparisons());
+        assertEquals(0, kmp.counters().lpsComparisons());
+        naive.search("a", "a");
+        assertEquals(1, naive.counters().comparisons());
+        kmp.search("a", "ab");
+        assertEquals(0, kmp.counters().comparisons());
+        assertEquals(0, kmp.counters().allocatedCells());
+    }
 
     @ParameterizedTest
     @MethodSource("algorithms")

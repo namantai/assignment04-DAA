@@ -65,8 +65,31 @@ class EditDistanceTest {
         return result.toString();
     }
 
+    @Test
+    void recursiveCounterCountsBaseCallsAndResets() {
+        RecursiveEditDistance algorithm = new RecursiveEditDistance();
+        assertEquals(1, algorithm.distance("a", "b"));
+        assertEquals(4, algorithm.counters().recursiveCalls());
+        assertEquals(0, algorithm.distance("abc", "abc"));
+        assertEquals(4, algorithm.counters().recursiveCalls());
+        assertEquals(0, algorithm.distance("", ""));
+        assertEquals(1, algorithm.counters().recursiveCalls());
+    }
 
+    @ParameterizedTest
+    @MethodSource("dpAlgorithms")
+    void dpCountersCountOnlyInteriorCellsAndActualStorage(EditDistance algorithm) {
+        assertEquals(3, algorithm.distance("ab", "cde"));
+        assertEquals(6, algorithm.counters().cellUpdates());
+        assertEquals(algorithm instanceof TableEditDistance ? 12 : 8, algorithm.counters().allocatedCells());
+        assertEquals(0, algorithm.distance("", ""));
+        assertEquals(0, algorithm.counters().cellUpdates());
+        assertEquals(algorithm instanceof TableEditDistance ? 1 : 2, algorithm.counters().allocatedCells());
+    }
 
+    static List<EditDistance> dpAlgorithms() {
+        return List.of(new TableEditDistance(), new TwoRowsEditDistance());
+    }
 
     @ParameterizedTest
     @MethodSource("algorithms")

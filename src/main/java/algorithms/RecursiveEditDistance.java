@@ -3,6 +3,7 @@ package algorithms;
 import java.util.Objects;
 
 public final class RecursiveEditDistance implements EditDistance {
+    private final Counters counters = new Counters();
 
     // State: d(n,m) is the distance between the first n and m characters.
     // Transition: equal last characters use d(n-1,m-1); otherwise 1 + min(delete, insert, replace).
@@ -11,10 +12,12 @@ public final class RecursiveEditDistance implements EditDistance {
     public int distance(String a, String b) {
         Objects.requireNonNull(a, "a");
         Objects.requireNonNull(b, "b");
+        counters.reset();
         return solve(a, b, a.length(), b.length());
     }
 
     private int solve(String a, String b, int n, int m) {
+        counters.recursiveCalls++;
         if (n == 0) return m;
         if (m == 0) return n;
         if (a.charAt(n - 1) == b.charAt(m - 1)) {
@@ -26,4 +29,6 @@ public final class RecursiveEditDistance implements EditDistance {
         return 1 + Math.min(delete, Math.min(insert, replace));
     }
 
+    @Override
+    public Counters counters() { return counters; }
 }
